@@ -1,12 +1,11 @@
 """The main entry point of this script."""
 import sys
 
-from project_pdf import project
+from project_pdf import project_pdf
 
 
 def main() -> int:
-    project()
-    return 0
+    return project_pdf()
 
 
 if __name__ == "__main__":

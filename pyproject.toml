@@ -15,7 +15,19 @@ selenium = "^4.25.0"
 pyinstaller = "^6.10.0"
 ipython = "^8.28.0"
 pylint = "^3.3.1"
+poethepoet = "^0.29.0"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+
+################################################################################
+# Environment Variables
+
+[tool.poe.env]
+PY_INSTALLER = "pyinstaller --onefile --copy-metadata project_pdf --noconfirm --name project_pdf"
+SRC_DIR = "src/project_pdf"
+
+[tool.poe.tasks.build]
+cmd = "$PY_INSTALLER $SRC_DIR/__main__.py"
