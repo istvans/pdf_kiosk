@@ -26,7 +26,7 @@ build-backend = "poetry.core.masonry.api"
 # Environment Variables
 
 [tool.poe.env]
-PY_INSTALLER = "pyinstaller --onefile --copy-metadata project_pdf --noconfirm --name project_pdf"
+PY_INSTALLER = "pyinstaller --onefile --copy-metadata project_pdf --noconfirm --name project_pdf --icon=images/pdf.ico"
 SRC_DIR = "src/project_pdf"
 
 [tool.poe.tasks.build]
