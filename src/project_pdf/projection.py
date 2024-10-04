@@ -14,6 +14,26 @@ from selenium.webdriver.support.ui import Select
 _logger = logging.getLogger(__name__)
 
 
+def _is_element_visible_in_viewpoint(driver, element) -> bool:
+    """https://stackoverflow.com/questions/45243992/verification-of-element-in-viewport-in-selenium"""
+    return driver.execute_script(
+        """
+        var elem = arguments[0],
+        box = elem.getBoundingClientRect(),
+        cx = box.left + box.width / 2,
+        cy = box.top + box.height / 2,
+        e = document.elementFromPoint(cx, cy);
+        for (; e; e = e.parentElement) {
+            if (e === elem) {
+                return true;
+            }
+        }
+        return false;
+        """,
+        element
+    )
+
+
 def project_pdf() -> int:
     driver = None
     was_closed = False
@@ -42,25 +62,26 @@ def project_pdf() -> int:
         scroll_to_top = Keys.HOME
 
         last_page = pages[-1]
-        end_of_last_page = last_page.find_element(By.CLASS_NAME, "endOfContent")
+        last_text = last_page.text.split('\n')[-1]
+        last_element = last_page.find_elements(By.XPATH, f"//*[text() = {last_text}]")[-1]
 
-        import IPython; IPython.embed()
-        raise NotImplementedError()
+        display_time = 5
 
+        time.sleep(display_time)
         while True:
             try:
-                time.sleep(7)
-
-                for _ in range(20):
+                for _ in range(15):
                     actions.send_keys(scroll_down).perform()
                     time.sleep(0.02)
 
-                rached_end_of_last_page = last_page.location["y"] < end_of_last_page.location["y"]
+                time.sleep(display_time)
 
-                i += 1
-                if i == (3 * num_pages):
+                if (i == (3 * num_pages)) or _is_element_visible_in_viewpoint(driver, last_element):
                     i = 0
                     actions.send_keys(scroll_to_top).perform()
+                    time.sleep(display_time)
+                else:
+                    i += 1
             except WebDriverException as exc:
                 if "Message: Failed to decode response from marionette" in str(exc):
                     was_closed = True
