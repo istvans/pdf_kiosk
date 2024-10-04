@@ -93,7 +93,6 @@ def project_pdf() -> int:
                           "Kérlek másold ki a most következő hiba üzenetet (\"traceback\") "
                           "vagy legalább csinálj róla egy képernyő fotót és küld el nekem! "
                           "Bocsi!")
-        print("Kérlek zárd be a böngésző ablakot (ha még nyitva van)!")
         input("Nyomj egy gombot és az ablak bezárul")
         return 1
     finally:
