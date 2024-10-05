@@ -56,6 +56,51 @@ def project_pdf() -> int:
 
         print(f"A doksinak {num_pages} oldala van.")
 
+        elements = []
+        for page in pages:
+            elements.append([])
+            page_content = elements[-1]
+            spans = page.find_elements(By.XPATH, ".//span[string-length(text()) > 0]")
+            for span in spans:
+                text = span.text.strip()
+                if text:
+                    page_content.append(span)
+
+        content = []
+        for (page_index, page) in enumerate(elements):
+            page.sort(key=lambda e: e.location["y"])
+            rows = []
+            columns = []
+            prev = None
+            for e in page:
+                diff = 0 if (prev is None) else (e.location["y"] - prev.location["y"])
+                if diff > 25:
+                    columns.sort(key=lambda e: e.location["x"])
+                    rows.append(columns[:])
+                    columns.clear()
+
+                columns.append(e)
+                prev = e
+
+            columns.sort(key=lambda e: e.location["x"])
+            rows.append(columns[:])  # add the last row
+
+            content.append(rows)
+
+
+        for (page_index, page) in enumerate(content):
+            print(f"Page {page_index + 1}:")
+            for row in page:
+                print("    ", end="")
+                for col in row:
+                    print(f"{col.text} ", end="")
+                print()
+            print()
+            print()
+
+
+        import sys; sys.exit(42)  # TODO remove once we have the tables parsed
+
         actions = ActionChains(driver)
         i = 0
         scroll_down = Keys.DOWN
@@ -65,7 +110,7 @@ def project_pdf() -> int:
         last_text = last_page.text.split('\n')[-1]
         last_element = last_page.find_elements(By.XPATH, f"//*[text() = {last_text}]")[-1]
 
-        display_time = 5
+        display_time = 3  # TODO change this to 8!
 
         time.sleep(display_time)
         while True:
