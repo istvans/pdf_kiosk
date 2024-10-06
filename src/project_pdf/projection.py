@@ -110,6 +110,18 @@ def infinite_scroll_other(driver, content, display_time):
     ))
 
 
+def hide_toolbar(driver):
+    driver.execute_script("document.getElementById('toolbarContainer').style.display = 'none';")
+    driver.execute_script("document.getElementById('mainContainer').style.top = 0;")
+    driver.execute_script("document.getElementById('outerContainer').style.top = 0;")
+    driver.execute_script("document.getElementById('viewerContainer').style.top = 0;")
+
+
+def set_to_page_width(driver):
+    select = Select(driver.find_element(By.ID, "scaleSelect"))
+    select.select_by_value('page-width')
+
+
 def project_pdf() -> int:
     driver = None
     try:
@@ -121,9 +133,12 @@ def project_pdf() -> int:
         driver = webdriver.Firefox()
 
         driver.get(f"file://{filename}")
+
         driver.fullscreen_window()
-        select = Select(driver.find_element(By.ID, "scaleSelect"))
-        select.select_by_value('page-width')
+
+        set_to_page_width(driver)
+
+        hide_toolbar(driver)
 
         pages = driver.find_elements(By.CLASS_NAME, "page")
         num_pages = len(pages)
