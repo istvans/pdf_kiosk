@@ -81,9 +81,10 @@ def infinite_scroll_kreta(driver, content, display_time):
 
 def infinite_scroll_other(driver, content, display_time):
     def scroll_to_the_end_and_back(scroll_down, scroll_to_top, last_element, _):
-        for _ in range(15):
-            actions.send_keys(scroll_down).perform()
-            time.sleep(0.02)
+        if not _is_element_visible_in_viewpoint(driver, last_element):
+            for _ in range(15):
+                actions.send_keys(scroll_down).perform()
+                time.sleep(0.02)
 
         time.sleep(display_time)
 
