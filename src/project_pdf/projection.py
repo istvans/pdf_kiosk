@@ -1,10 +1,17 @@
 """Open a PDF, display it in full screen and scroll it constantly."""
+from enum import Enum
+import functools
 import logging
 from tkinter.filedialog import askopenfilename
+from typing import Callable, List
 import time
 
 from selenium import webdriver
-from selenium.common.exceptions import InvalidSessionIdException, WebDriverException
+from selenium.common.exceptions import (
+    InvalidSessionIdException,
+    NoSuchWindowException,
+    WebDriverException,
+)
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -12,6 +19,11 @@ from selenium.webdriver.support.ui import Select
 
 
 _logger = logging.getLogger(__name__)
+
+
+class Format(Enum):
+    KRETA = "Kréta"
+    OTHER = "'Másik'"
 
 
 def _is_element_visible_in_viewpoint(driver, element) -> bool:
@@ -34,10 +46,71 @@ def _is_element_visible_in_viewpoint(driver, element) -> bool:
     )
 
 
+def infinite_loop(scroller: Callable[[int], int], start_index: int = 0):
+    index = start_index
+    print("Indulás!")
+    while True:
+        try:
+            index = scroller(index)
+        except (WebDriverException, NoSuchWindowException) as exc:
+            if ("Message: Failed to decode response from marionette" in str(exc) or
+                "Message: Browsing context has been discarded" in str(exc)):
+                print("Végeztünk. Szia!")
+                break
+            raise
+
+
+def infinite_scroll_kreta(driver, content, display_time):
+    def scroll_teachers(teachers: List, teacher_index: int) -> int:
+        teachers[teacher_index].location_once_scrolled_into_view
+        time.sleep(display_time)
+        return (teacher_index + 1) % len(teachers)
+
+    teachers = []
+    for page in content:
+        for (row_index, row) in enumerate(page):
+            row_text = ""
+            for column in row:
+                row_text += column.text
+            if "Dátum" in row_text:
+                teacher = page[row_index - 1][0]
+                teachers.append(teacher)
+
+    infinite_loop(functools.partial(scroll_teachers, teachers), start_index=0)
+
+
+def infinite_scroll_other(driver, content, display_time):
+    def scroll_to_the_end_and_back(scroll_down, scroll_to_top, last_element, _):
+        for _ in range(15):
+            actions.send_keys(scroll_down).perform()
+            time.sleep(0.02)
+
+        time.sleep(display_time)
+
+        if _is_element_visible_in_viewpoint(driver, last_element):
+            actions.send_keys(scroll_to_top).perform()
+            time.sleep(display_time)
+
+        return -1
+
+    actions = ActionChains(driver)
+    scroll_down = Keys.DOWN
+    scroll_to_top = Keys.HOME
+
+    last_page = content[-1]
+    last_element = last_page[-1][-1]
+
+    time.sleep(display_time)
+    infinite_loop(functools.partial(
+        scroll_to_the_end_and_back,
+        scroll_down,
+        scroll_to_top,
+        last_element,
+    ))
+
+
 def project_pdf() -> int:
     driver = None
-    was_closed = False
-
     try:
         filename = askopenfilename(filetypes=[("PDF", "*.pdf")])
         if not filename:
@@ -87,52 +160,31 @@ def project_pdf() -> int:
 
             content.append(rows)
 
+        display_time = 8
 
-        for (page_index, page) in enumerate(content):
-            print(f"Page {page_index + 1}:")
+        format_ = None
+        for page in content:
             for row in page:
-                print("    ", end="")
-                for col in row:
-                    print(f"{col.text} ", end="")
-                print()
-            print()
-            print()
-
-
-        import sys; sys.exit(42)  # TODO remove once we have the tables parsed
-
-        actions = ActionChains(driver)
-        i = 0
-        scroll_down = Keys.DOWN
-        scroll_to_top = Keys.HOME
-
-        last_page = pages[-1]
-        last_text = last_page.text.split('\n')[-1]
-        last_element = last_page.find_elements(By.XPATH, f"//*[text() = {last_text}]")[-1]
-
-        display_time = 3  # TODO change this to 8!
-
-        time.sleep(display_time)
-        while True:
-            try:
-                for _ in range(15):
-                    actions.send_keys(scroll_down).perform()
-                    time.sleep(0.02)
-
-                time.sleep(display_time)
-
-                if (i == (3 * num_pages)) or _is_element_visible_in_viewpoint(driver, last_element):
-                    i = 0
-                    actions.send_keys(scroll_to_top).perform()
-                    time.sleep(display_time)
-                else:
-                    i += 1
-            except WebDriverException as exc:
-                if "Message: Failed to decode response from marionette" in str(exc):
-                    was_closed = True
-                    print("Végeztünk. Szia!")
+                row_text = ""
+                for column in row:
+                    if "óra" in column.text:
+                        format_ = Format.OTHER
+                        break
+                    row_text += column.text
+                if "Dátum" in row_text:
+                    format_ = Format.KRETA
                     break
-                raise
+
+        if format_ is None:
+            raise ValueError(f"Nem sikerült felismerni a PDF formátumát! Új formátum? Támogatott formátumok: {Format}")
+
+        print(f"Felismert formátum: {format_.value}")
+
+        match format_:
+            case Format.KRETA:
+                infinite_scroll_kreta(driver, content, display_time)
+            case Format.OTHER:
+                infinite_scroll_other(driver, content, display_time)
     except Exception:
         _logger.exception("Nem várt hiba történt! :( "
                           "Kérlek másold ki a most következő hiba üzenetet (\"traceback\") "
@@ -141,7 +193,7 @@ def project_pdf() -> int:
         input("Nyomj egy gombot és az ablak bezárul")
         return 1
     finally:
-        if driver and (not was_closed):
+        if driver:
             try:
                 driver.close()
             except InvalidSessionIdException:
